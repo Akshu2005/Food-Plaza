@@ -1,62 +1,51 @@
-// Import required modules
 const express = require('express');
-const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer');
 
-// Create an Express application
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Middleware to parse JSON requests
-app.use(express.json());
+// Middleware
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
-// MongoDB connection URI
-const mongoURI = 'mongodb://localhost:27017/foodPlazaDB';
+// Serve static files (e.g., HTML, CSS)
+app.use(express.static('public'));
 
-// Connect to MongoDB
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('Error connecting to MongoDB:', err));
+// POST route to handle form submission
+app.post('/submit-form', (req, res) => {
+    const { name, email, datetime, people, message } = req.body;
 
-// Define schema for table booking
-const bookingSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    dateTime: { type: Date, required: true },
-    people: { type: Number, required: true },
-    specialRequest: String
-});
+    // Create transporter object using SMTP transport
+    const transporter = nodemailer.createTransport({
+        service: 'Gmail',
+        auth: {
+            user: 'srivastavaakanksha875@gmail.com', // Your Gmail email address
+            pass: 'Seemu@2415' // Your Gmail password
+        }
+    });
 
-// Create a model for table booking
-const Booking = mongoose.model('Booking', bookingSchema);
+    // Email options
+    const mailOptions = {
+        from: 'your_email@gmail.com',
+        to: 'srivastavaakanksha875@example.com', // Your email address where you want to receive reservations
+        subject: 'New Reservation',
+        text: `Name: ${name}\nEmail: ${email}\nDate & Time: ${datetime}\nNo Of People: ${people}\nSpecial Request: ${message}`
+    };
 
-// Route to handle table booking form submission
-app.post('/bookTable', async (req, res) => {
-    try {
-        // Extract form data
-        const { name, email, dateTime, people, specialRequest } = req.body;
-
-        // Create a new booking document
-        const newBooking = new Booking({
-            name,
-            email,
-            dateTime,
-            people,
-            specialRequest
-        });
-
-        // Save the booking to MongoDB
-        await newBooking.save();
-
-        // Respond with success message
-        res.status(201).json({ message: 'Booking saved successfully' });
-    } catch (err) {
-        // Handle errors
-        console.error('Error saving booking:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+    // Send email
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.error(error);
+            res.status(500).send('Failed to send email');
+        } else {
+            console.log('Email sent: ' + info.response);
+            res.status(200).send('Reservation successful!');
+        }
+    });
 });
 
 // Start the server
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
